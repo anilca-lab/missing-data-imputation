@@ -9,7 +9,6 @@ growing at a higher rate are more likely to have missing data.
 """
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
 import matplotlib.pyplot as plt
 import seaborn as sns
 import requests
@@ -28,11 +27,23 @@ def flatten_wb_api_response(response_list):
             data_dict = {'indicator' : country['indicator']['id'], 
                          'country' : country['country']['value'],
                          'country_iso3_code' : country['countryiso3code'],
-                         'date' : int(country['date']),
+                         'year' : int(country['date']),
                          'value' : float(value)}
             flattened_list.append(data_dict)
     wb_api_df = pd.DataFrame(flattened_list)
     return wb_api_df
+
+def clean_data(df, start = 1995, stop = 2018):
+    """
+    Function to drop aggregates, unstack by indicators, and countries with missing values so that we can 
+    generate a carefully designed set of missing values based on a specific
+    mechanism.
+    """
+    country_iso3_code = pd.read_html('https://unstats.un.org/unsd/methodology/m49/')
+    country_iso3_code = country_iso3_code[0]['ISO-alpha3 code']
+    df = df.loc[df.country_iso3_code.isin(country_iso3_code)]
+    df = df.groupby(['indicator', 'country', 'year']).unstack(level = 1)
+    return df 
 """
 # =============================================================================
 # Function to create missing values.
