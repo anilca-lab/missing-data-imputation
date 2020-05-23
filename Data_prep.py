@@ -35,16 +35,25 @@ def flatten_wb_api_response(response_list):
 
 def clean_data(df, start = 1995, stop = 2018):
     """
-    Function to drop aggregates, unstack by indicators, and countries with missing values so that we can 
-    generate a carefully designed set of missing values based on a specific
-    mechanism.
+    Function to drop aggregates, unstack by indicators, and countries 
+    with missing values so that we can generate a carefully designed set of 
+    missing values based on a specific mechanism.
     """
     country_iso3_code = pd.read_html('https://unstats.un.org/unsd/methodology/m49/')
     country_iso3_code = country_iso3_code[0]['ISO-alpha3 code']
     df = df.loc[df.country_iso3_code.isin(country_iso3_code)]
-    df = df.groupby(['indicator', 'country', 'year']).unstack(level = 1)
-    return df 
-"""
+    df = df.set_index(['indicator', 'country_iso3_code', 'country', 'year']).unstack(level = 0)
+    df.columns = df.columns.get_level_values(1)
+    df = df.rename(columns = {'NY.GDP.PCAP.KD.ZG': 'pc_GDP_growth',
+                              'NY.GDP.PCAP.PP.CD': 'pc_GDP_PPP'})
+    df = df.reset_index()
+    df = df.loc[(df.year >= (start - 1)) & (df.year <= stop)]
+    df = df.dropna()
+    return df
+
+    
+
+    
 # =============================================================================
 # Function to create missing values.
 # It takes weight to correlate missingness with existing data. 
@@ -130,64 +139,7 @@ def create_beta_dict(ols_results_dict):
 #  Function to extract data through the WB API and UN web page.
 #  Returns a dataframe.
 # =============================================================================
-def etl():
-    url = 'http://api.worldbank.org/v2/country/all/indicator'
-    indicator_list = ['NY.GDP.PCAP.KD.ZG', \
-                      'NY.GDP.PCAP.PP.CD']
-    parameters = {'date': '1989:2018', \
-                  'footnote': 'n', \
-                  'format': 'json', \
-                  'per_page': 7920}
-    results_list = []
-    for indicator in indicator_list:
-        results = requests.get(f'{url}/{indicator}', \
-                               params = parameters)
-        if results.status_code == 200:
-            results_list.append(results.json())
-        else:
-            print('Failed request')
-    country_iso3_code = pd.read_html('https://unstats.un.org/unsd/methodology/m49/')
-    country_iso3_code = country_iso3_code[0]  
-    list_per_capita_GDP_growth = results_list[0][1] 
-    list_per_capita_GDP_PPP = results_list[1][1]
-    df_per_capita_GDP_growth = flattened_df(list_per_capita_GDP_growth, country_iso3_code)
-    df_per_capita_GDP_PPP = flattened_df(list_per_capita_GDP_PPP, country_iso3_code)
-    # Drop missing values, and prepare the initial values as well as mean growth rates
-    df_per_capita_GDP_PPP = df_per_capita_GDP_PPP.loc[(df_per_capita_GDP_PPP.date >= 1994) & \
-                                                      (df_per_capita_GDP_PPP.date <= 1996) & \
-                                                      (~df_per_capita_GDP_PPP.value.isna())]\
-                                                 .groupby('country').value.mean()
-    df_per_capita_GDP_growth = df_per_capita_GDP_growth.loc[(df_per_capita_GDP_growth.date >= 1995) & \
-                                                            (df_per_capita_GDP_growth.date <= 2018) & \
-                                                            (~df_per_capita_GDP_growth.value.isna())]
-    df_per_capita_GDP_growth['value'] = (df_per_capita_GDP_growth.value + 100) / 100
-    df_per_capita_GDP_growth = pd.concat([df_per_capita_GDP_growth.groupby('country').value.prod(), \
-                                          df_per_capita_GDP_growth.groupby('country').value.count()], \
-                                         axis = 1, \
-                                         ignore_index = True)
-    # Compute geometric mean
-    df_per_capita_GDP_growth['per_capita_GDP_growth'] = (df_per_capita_GDP_growth.iloc[:, 0] ** \
-                                                         (1/df_per_capita_GDP_growth.iloc[:, 1]) - 1) * 100     
-    df_per_capita_GDP_growth = df_per_capita_GDP_growth[['per_capita_GDP_growth']]                                            
-    df_convergence = pd.merge(left = df_per_capita_GDP_PPP, 
-                              right = df_per_capita_GDP_growth, \
-                              how = 'inner', \
-                              on = 'country')
-    df_convergence['per_capita_GDP'] = np.log(df_convergence.value)
-    df_convergence = df_convergence.drop(columns = 'value')
-    return df_convergence
 
-# =============================================================================
-# Function to create weights. 
-# 
-# =============================================================================
-def create_weights(data_frame):
-    data_frame['weights'] = 0
-    data_frame.loc[data_frame.per_capita_GDP_growth > 0, \
-                   'weights'] = data_frame.loc[data_frame.per_capita_GDP_growth > 0, \
-                                               'per_capita_GDP_growth'] / \
-                                data_frame.per_capita_GDP_growth.sum()                                
-    return data_frame 
 
 def create_beta_df(betas_dict):
     betas_list = [{'mean_beta': np.mean([item['beta']['per_capita_GDP'] \
