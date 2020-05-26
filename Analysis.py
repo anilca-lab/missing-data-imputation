@@ -71,7 +71,8 @@ def impute_na(df_list, betas_df):
         std1 = betas_df.loc[i, 'std1']
         for i in imputed_df.loc[imputed_df.pc_GDP_PPP.isna()].index:
             imputed_df.pc_GDP_PPP[i] = np.random.normal(loc = beta0, scale = std0, size = 1) + \
-                                       np.random.normal(loc = beta1, scale = std1, size = 1) 
+                                       (np.random.normal(loc = beta1, scale = std1, size = 1) * \
+                                        imputed_df.pc_GDP_growth[i])
         imputed_df_list.append(imputed_df)
     return imputed_df_list
 

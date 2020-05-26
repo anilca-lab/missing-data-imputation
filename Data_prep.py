@@ -47,3 +47,12 @@ def clean_data(df, start = 1995, stop = 2018):
     df = df.loc[(df.year >= (start - 1)) & (df.year <= stop)]
     df = df.dropna()
     return df
+
+def add_weights(df):
+    """
+    This function add weights to be used to generate missing values.
+    """
+    df['weight'] = 0
+    denom = np.sum(df.loc[df.pc_GDP_growth > 0].pc_GDP_growth)
+    df.loc[df.pc_GDP_growth > 0, 'weight'] = df.pc_GDP_growth / denom 
+    return df
