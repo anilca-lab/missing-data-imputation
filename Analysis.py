@@ -62,6 +62,10 @@ def get_betas(ols_rslts_dict, scope):
     return pd.DataFrame(param_list)
 
 def impute_na(df_list, betas_df):
+    """
+    This function imputes the missing values using a random regression
+    approach.
+    """
     imputed_df_list = []
     for df, i in zip(df_list, betas_df.index):
         imputed_df = df.copy()
@@ -76,55 +80,20 @@ def impute_na(df_list, betas_df):
         imputed_df_list.append(imputed_df)
     return imputed_df_list
 
-
-"""
-# =============================================================================
-# The main body of the code.
-# =============================================================================
-
-
-
-df_convergence_na_list = simulate_na(df_convergence, 'per_capita_GDP')
-convergence_na_ols_dict = run_ols(df_convergence_na_list)
-betas_dict = create_beta_dict(convergence_na_ols_dict)
-df_betas = create_beta_df(betas_dict)
-ax = sns.pointplot(x = 'scope', y = 'beta', data = df_betas.loc[df_betas.index == 'y_on_x'], \
-                   order = ['full sample', 'complete case'], capsize = 0.1)
-ax.set_xlabel('')
-ax.set_ylabel('Coefficient for per capita GDP\n(Ticks indicate 95% confidence interval)')
-ax.set_title('Income Convergence, 1995-2018\nSimulation Results with N = 100')
-plt.show()
-ax = sns.pointplot(x = 'scope', y = 'beta', data = df_betas.loc[df_betas.index == 'x_on_y'], \
-                   order = ['full sample', 'complete case'], capsize = 0.1)
-ax.set_xlabel('')
-ax.set_ylabel('Coefficient for per capita GDP growth\n(Ticks indicate 95% confidence interval)')
-ax.set_title('Regression of Initial Income Level on the Income Growth\nSimulation Results with N = 100')
-plt.show() 
-
-# Imputation
-
-df_convergence_na_imputed_list = impute_na(df_convergence_na_list, betas_dict['x_on_y'])
-ax = sns.regplot(df_convergence.per_capita_GDP, df_convergence.per_capita_GDP_growth, fit_reg = False, color = 'r')
-ax = sns.regplot(df_convergence_na_imputed_list[0].per_capita_GDP, df_convergence_na_imputed_list[0].per_capita_GDP_growth, ci = None)
-ax.set_xlabel('PPP adjusted per capita GDP in 1995')
-ax.set_ylabel('Annual growth in per capita GDP\n1995-2018')
-ax.set_title('Income Convergence, 1995-2018 (Imputed Values)')
-ax.legend(['imputed-values regression', 'set to missing'])
-plt.show()
-
-convergence_na_imputed_ols_dict = run_ols(df_convergence_na_imputed_list)
-betas_imputed_dict = create_beta_dict(convergence_na_imputed_ols_dict)
-df_betas_imputed = create_beta_df(betas_imputed_dict)
-df_betas_imputed.loc[df_betas_imputed.scope == 'complete case', 'scope'] = 'imputed values'
-ax = sns.pointplot(x = 'scope', y = 'beta', data = df_betas_imputed.loc[df_betas_imputed.index == 'y_on_x'], \
-                   order = ['full sample', 'imputed values'], capsize = 0.1)
-ax.set_xlabel('')
-ax.set_ylabel('Coefficient for per capita GDP\n(Ticks are to indicate standard deviation)')
-ax.set_title('Regression of Income Growth on the Initial Income Level')
-plt.show()
-
-
-
-
-"""
-
+def summarize(betas_df):
+    """
+    This function summarizes the parameters to plot.
+    """
+    summary_df = betas_df.loc[betas_df.type == 'y_on_x'].groupby('scope').mean()[['beta1', 'std1']].reset_index()
+    new_rows = []
+    for i in summary_df.index:
+        row1 = {'scope': '', 'beta1': np.nan, 'std1': np.nan}
+        row2 = {'scope': '', 'beta1': np.nan, 'std1': np.nan}
+        row1['scope'] = summary_df.scope[i]
+        row2['scope'] = summary_df.scope[i]
+        row1['beta1'] = summary_df.beta1[i] + 1.96 * summary_df.std1[i]
+        row2['beta1'] = summary_df.beta1[i] - 1.96 * summary_df.std1[i]
+        new_rows.append(row1)
+        new_rows.append(row2)
+    summary_df = summary_df.append(new_rows)
+    return summary_df
