@@ -1,3 +1,5 @@
+### Imputing Missing Data
+
 A model is only as good as the data used to build it: garbage in, garbage out. This is why the entire process of proper data preparation and more specifically, handling of missing data is crucial. In the age of "big data", simply discarding missing data and focusing on complete cases may look like a no-brainer. But, more often than not, the process generating the missingness is not completely random. Therefore, limiting an analysis to complete cases is likely to yield biased results.
 
 Complete randomness aside, there are three types of missingness generating mechanisms:
